@@ -146,10 +146,10 @@ class GitlabProject(Project):
         # http://stackoverflow.com/a/20078869/98491
         return ''.join([i if ord(i) < 128 else ' ' for i in text])
 
-    def create_issue(self, data, meta):
+    def create_issue(self, data, meta, unsubscribe):
         """ High-level issue creation
 
-        :param meta: dict with "sudo_user", "must_close", "notes" and "attachments" keys
+        :param meta: dict with "sudo_user", "must_close", "notes", "attachments", "assignee_id", and "author_login" keys
         :param data: dict formatted as the gitlab API expects it
         :return: the created issue (without notes)
         """
@@ -162,6 +162,7 @@ class GitlabProject(Project):
            data['description'] = "{}\n* Uploads:\n  * {}".format(data['description'], uploads_text)
 
         headers = {}
+        
         if 'sudo_user' in meta:
             headers['SUDO'] = meta['sudo_user']
         issues_url = '{}/issues'.format(self.api_url)
@@ -180,12 +181,22 @@ class GitlabProject(Project):
                 issue_notes_url, data=note_data,
                 headers=note_headers)
 
+        # Handle assignment
+        if 'sudo_user' not in meta and 'author_login' in meta:
+            self.api.put(issue_url, {'assignee_ids': meta['author_login']})
+
+        if 'assignee_id' in meta:
+            self.api.put(issue_url, {'assignee_ids': meta['assignee_id']})
+        else:
+            if 'sudo_user' not in meta and 'author_login' in meta:
+                self.api.put(issue_url, {'assignee_ids': 0})
+
+
         # Handle closed status
         if meta['must_close']:
             self.api.put(issue_url, {'state_event': 'close'})
             
-        # I'm not sure I like this, but for now it's preferable to the alternative for me
-        if 'sudo_user' not in meta:
+        if unsubscribe:
             self.api.post('{}/{}'.format(issue_url, 'unsubscribe'), data={}, headers={})
 
         return issue

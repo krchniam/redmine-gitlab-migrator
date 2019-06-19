@@ -131,6 +131,16 @@ def parse_args():
         default=True,
         help="do not use sudo, use if user is not admin (e.g. gitlab.com)")
 
+    parser_issues.add_argument(
+        '--assign-author',
+        required=False, action='store_true', default=False,
+        help="If not using sudo, assign issue to original author temporarily to make them a participant")
+
+    parser_issues.add_argument(
+        '--unsubscribe-migrator',
+        required=False, action='store_true', default=False,
+        help="If not using sudo, unsubscribe from issues after creation")
+
     parser_pages.add_argument(
         '--gitlab-wiki',
         required=True,
@@ -256,7 +266,7 @@ def perform_migrate_issues(args):
     issues_data = (
         convert_issue(args.redmine_key,
             i, redmine_users_index, gitlab_users_index, milestones_index, closed_states, custom_fields, textile_converter,
-            args.keep_id or args.keep_title, args.sudo)
+            args.keep_id or args.keep_title, args.sudo, args.assign_author)
         for i in issues)
 
     # create issues
@@ -283,7 +293,7 @@ def perform_migrate_issues(args):
                 data['iid'] = redmine_id
 
             try:
-                created = gitlab_project.create_issue(data, meta)
+                created = gitlab_project.create_issue(data, meta, args.unsubscribe_migrator)
                 last_iid = created['iid']
                 log.info('#{iid} {title}'.format(**created))
             except:

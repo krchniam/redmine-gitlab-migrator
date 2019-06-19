@@ -160,7 +160,7 @@ def custom_fields_to_string(custom_fields, custom_fields_include):
 # Convertor
 
 def convert_issue(redmine_api_key, redmine_issue, redmine_user_index, gitlab_user_index,
-		  gitlab_milestones_index, closed_states, custom_fields_include, textile_converter, keep_title, sudo):
+		  gitlab_milestones_index, closed_states, custom_fields_include, textile_converter, keep_title, sudo, assign_author):
 
     issue_state = redmine_issue['status']['name']
 
@@ -255,11 +255,14 @@ def convert_issue(redmine_api_key, redmine_issue, redmine_user_index, gitlab_use
     }
     if sudo:
         meta['sudo_user'] = author_login
+    
+    if assign_author:
+        meta['author_login'] = author_login
 
     assigned_to = redmine_issue.get('assigned_to', None)
     if assigned_to is not None:
         try:
-            data['assignee_id'] = redmine_uid_to_gitlab_user(
+            meta['assignee_id'] = redmine_uid_to_gitlab_user(
                 assigned_to['id'], redmine_user_index, gitlab_user_index)['id']
         except KeyError:
             if ANONYMOUS_USERNAME:
