@@ -1,6 +1,7 @@
 import re
 import logging
 import requests
+import ssl
 import urllib.parse
 
 from . import APIClient, Project
@@ -71,6 +72,8 @@ class GitlabProject(Project):
         super().__init__(*args, **kwargs)
         self.group_id = None
 
+        self.ssl_context = ssl._create_default_https_context() if self.api.verify else ssl._create_unverified_context()
+
         self.instance_url = '{}/api/v4'.format(
             self._url_match.group('base_url'))
 
@@ -120,7 +123,7 @@ class GitlabProject(Project):
            try:
                # http://docs.python-requests.org/en/latest/user/quickstart/#post-a-multipart-encoded-file
                # http://stackoverflow.com/questions/20830551/how-to-streaming-upload-with-python-requests-module-include-file-and-data
-               files = [("file", (u['filename'], urlopen(u['content_url']), u['content_type']))]
+               files = [("file", (u['filename'], urlopen(u['content_url'], context = self.ssl_context), u['content_type']))]
            except urllib.error.HTTPError as e:
                if e.code == 404:
                    # attachment was not found in redmine
@@ -134,7 +137,7 @@ class GitlabProject(Project):
                # gitlab might throw an "ArgumentError (invalid byte sequence in UTF-8)" in production.log
                # if the filename contains special chars like german "umlaute"
                # in that case we retry with an ascii only filename.
-               files = [("file", (self.remove_non_ascii(u['filename']), urlopen(u['content_url']), u['content_type']))]
+               files = [("file", (self.remove_non_ascii(u['filename']), urlopen(u['content_url'], context = self.ssl_context), u['content_type']))]
                upload = self.api.post(
                    uploads_url, files=files)
 
